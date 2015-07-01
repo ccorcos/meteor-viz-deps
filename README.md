@@ -1,4 +1,4 @@
-# Visualizing Meteor Package Dependencies with D3
+# [Visualizing Meteor Package Dependencies with D3](https://viz-deps.meteor.com)
 
 ![](/private/force-example.png)
 
