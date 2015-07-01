@@ -1,0 +1,124 @@
+Session.setDefault('versions', null)
+Session.setDefault('loading', false)
+Session.setDefault('current', {})
+
+Template.main.helpers
+  versions: () ->
+    Session.get('versions')
+  loading: () ->
+    Session.get('loading')
+  current: ->
+    Session.get('current')
+
+Template.main.events
+  'click button.visualize': (e,t) ->
+    versions = R.trim(t.find('textarea').value)
+    if versions isnt ''
+      Session.set('loading', true)
+      Session.set('versions', versions)
+      Meteor.call 'packages', versions, (err, packages) ->
+        Session.set('loading', false)
+        Meteor.defer ->
+          renderVis(packages)
+  'click button.reset': (e,t) ->
+    Session.set('versions', null)
+
+renderVis = (packages) ->
+  console.log("render!", packages)
+
+  width = 500
+  height = 500
+  color = d3.scale.category20()
+
+  @force = force = d3.layout.force()
+    .charge(-80)
+    .linkDistance(30).size([width, height])
+
+  @svg = svg = d3.select('#viz')
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height)
+
+  @nodes = nodes = packages.filter(({name}) -> name isnt "meteor" and name isnt "meteor-platform")
+  @links = links = []
+
+  # nodes = [{name:'something', dependencies:['name']}]
+  # links = [{source:node1, target:node2}]
+
+  # # find = R.converge(R.find, R.propEq('name'), R.always(nodes))
+  # find = (name) -> R.find(R.propEq('name', name), nodes)
+  # push = links.push.bind(links)
+  # # make = R.converge(R.pipe(R.always({}), R.__, R.__), R.assoc('source'), R.assoc('target')) 
+  # make = (source, target) -> {source, target}
+  # addLink = R.pipe(make, push)
+
+  # # addLinks = R.map(
+  # #   R.converge(
+  # #     R.converge(
+  # #       R.pipe, addLink ,       R.flip(R.map)) 
+  # #               R.prop('name'), R.prop('dependencies'))
+
+  # # addLinks(nodes)
+
+  # R.map ({name, dependencies}) ->
+  #   R.map (dep) ->
+  #     addLink(find(name), find(dep))
+  #   , dependencies
+  # , nodes
+
+  find = (name) ->
+    for node in nodes
+      if name is node.name
+        return node
+    console.warn("NOT FOUND", name)
+    return undefined
+
+  for {name, dependencies} in nodes
+    for dep in (dependencies or [])
+      source = find(name)
+      target = find(dep)
+      if source and target
+        links.push({source, target})
+
+  force
+    .nodes(nodes)
+    .links(links)
+    .start()
+
+  link = svg.selectAll('.link')
+    .data(links)
+    .enter()
+    .append('line')
+    .attr('class', 'link')
+    # .style('stroke-width', (d) -> Math.sqrt d.value)
+
+  node = svg.selectAll('.node')
+    .data(nodes)
+    .enter()
+
+  circle = node.append('circle')
+    .attr('class', 'node')
+    .attr('r', 5)
+    .style('fill', (d) -> color d.group)
+    .call(force.drag)
+    .on('mouseover', (d) -> Session.set('current', d))
+
+  text = node.append("text")
+    .attr("dx", 12)
+    .attr("dy", ".10em")
+    .text((d) -> d.name)
+
+  force.on 'tick', ->
+    link.attr 'x1', (d) -> d.source.x
+      .attr 'y1', (d) -> d.source.y
+      .attr 'x2', (d) -> d.target.x
+      .attr 'y2', (d) -> d.target.y
+    
+    circle.attr 'cx', (d) -> d.x
+      .attr 'cy', (d) -> d.y
+
+    # text.attr 'cx', (d) -> d.x
+    #   .attr 'cy', (d) -> d.y
+
+    text.attr 'transform', (d) -> 'translate(' + d.x + ',' + d.y + ')'
+

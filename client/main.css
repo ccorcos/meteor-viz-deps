@@ -1,0 +1,28 @@
+textarea {
+  height: 550px;
+  width: 450px;
+}
+
+.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: .6;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
+}
+
+div {
+  display: inline-block;
+}
+
+#info {
+  position: absolute;
+  top: 0;
+}
