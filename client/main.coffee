@@ -42,30 +42,6 @@ renderVis = (packages) ->
   @nodes = nodes = packages.filter(({name}) -> name isnt "meteor" and name isnt "meteor-platform")
   @links = links = []
 
-  # nodes = [{name:'something', dependencies:['name']}]
-  # links = [{source:node1, target:node2}]
-
-  # # find = R.converge(R.find, R.propEq('name'), R.always(nodes))
-  # find = (name) -> R.find(R.propEq('name', name), nodes)
-  # push = links.push.bind(links)
-  # # make = R.converge(R.pipe(R.always({}), R.__, R.__), R.assoc('source'), R.assoc('target')) 
-  # make = (source, target) -> {source, target}
-  # addLink = R.pipe(make, push)
-
-  # # addLinks = R.map(
-  # #   R.converge(
-  # #     R.converge(
-  # #       R.pipe, addLink ,       R.flip(R.map)) 
-  # #               R.prop('name'), R.prop('dependencies'))
-
-  # # addLinks(nodes)
-
-  # R.map ({name, dependencies}) ->
-  #   R.map (dep) ->
-  #     addLink(find(name), find(dep))
-  #   , dependencies
-  # , nodes
-
   find = (name) ->
     for node in nodes
       if name is node.name
@@ -116,9 +92,6 @@ renderVis = (packages) ->
     
     circle.attr 'cx', (d) -> d.x
       .attr 'cy', (d) -> d.y
-
-    # text.attr 'cx', (d) -> d.x
-    #   .attr 'cy', (d) -> d.y
 
     text.attr 'transform', (d) -> 'translate(' + d.x + ',' + d.y + ')'
 
