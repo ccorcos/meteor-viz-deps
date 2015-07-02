@@ -23,75 +23,87 @@ Template.main.events
   'click button.reset': (e,t) ->
     Session.set('versions', null)
 
+
 renderVis = (packages) ->
   console.log("render!", packages)
 
-  width = 500
-  height = 500
-  color = d3.scale.category20()
+  remove = R.curry (name, list) ->
+    newList = []
+    for node in list
+      if node.name isnt name
+        newDeps = []
+        for dep in node.dependencies
+          if dep isnt name
+            newDeps.push(dep)
+        node.dependencies = newDeps
+        newList.push(node)
+    return newList
 
-  @force = force = d3.layout.force()
-    .charge(-80)
-    .linkDistance(30).size([width, height])
+  
+  nodes = R.pipe(
+    remove('meteor')
+    remove('meteor-platform')
+  )(packages)
 
-  @svg = svg = d3.select('#viz')
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height)
+  makeLinks = (list) ->
+    links = []
+    map = {}
+    for node in list
+      map[node.name] = node
+    for node in list
+      for dep in node.dependencies
+        unless map[dep]
+          map[dep] = {name:dep, deps:[], from:[]}
+        # links.push({source:node, target:map[dep]})
+        links.push([node, map[dep]])
+    return links
 
-  @nodes = nodes = packages.filter(({name}) -> name isnt "meteor" and name isnt "meteor-platform")
-  @links = links = []
+  links = makeLinks(nodes)
 
-  find = (name) ->
-    for node in nodes
-      if name is node.name
-        return node
-    console.warn("NOT FOUND", name)
-    return undefined
+  diameter = 960
+  radius = diameter / 2
+  innerRadius = radius - 120
 
-  for {name, dependencies} in nodes
-    for dep in (dependencies or [])
-      source = find(name)
-      target = find(dep)
-      if source and target
-        links.push({source, target})
+  radial = (list) ->
+    len = list.length
+    y = innerRadius
+    dx = 360 / len
+    x = 0
+    for node in list
+      node.y = y
+      node.x = x
+      x += dx
 
-  force
-    .nodes(nodes)
-    .links(links)
-    .start()
+  radial(nodes)
 
-  link = svg.selectAll('.link')
-    .data(links)
-    .enter()
-    .append('line')
-    .attr('class', 'link')
-    # .style('stroke-width', (d) -> Math.sqrt d.value)
+  @nodes = nodes
 
-  node = svg.selectAll('.node')
-    .data(nodes)
-    .enter()
+  svg = d3.select("#viz").append("svg")
+    .attr("width", diameter)
+    .attr("height", diameter)
+    .append("g")
+    .attr("transform", "translate(" + radius + "," + radius + ")");
 
-  circle = node.append('circle')
-    .attr('class', 'node')
-    .attr('r', 5)
-    .style('fill', (d) -> color d.group)
-    .call(force.drag)
-    .on('mouseover', (d) -> Session.set('current', d))
+  line = d3.svg.line.radial()
+    .interpolate('bundle')
+    .tension(.85)
+    .radius((d) -> d.y )
+    .angle((d) -> d.x / 180 * Math.PI )
 
-  text = node.append("text")
-    .attr("dx", 12)
-    .attr("dy", ".10em")
-    .text((d) -> d.name)
+  svg.selectAll(".link")
+      .data(links)
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", line)
 
-  force.on 'tick', ->
-    link.attr 'x1', (d) -> d.source.x
-      .attr 'y1', (d) -> d.source.y
-      .attr 'x2', (d) -> d.target.x
-      .attr 'y2', (d) -> d.target.y
-    
-    circle.attr 'cx', (d) -> d.x
-      .attr 'cy', (d) -> d.y
-
-    text.attr 'transform', (d) -> 'translate(' + d.x + ',' + d.y + ')'
-
+  svg.selectAll(".node")
+      .data(nodes)
+    .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", (d) ->  "rotate(" + (d.x - 90) + ")translate(" + d.y + ")" )
+    .append("text")
+      .attr("dx", (d) -> if d.x < 180 then 8 else -8 )
+      .attr("dy", ".31em")
+      .attr("text-anchor", (d) -> if d.x < 180 then "start" else "end")
+      .attr("transform", (d) ->  if d.x < 180 then null else "rotate(180)")
+      .text((d) ->  d.name )

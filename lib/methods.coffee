@@ -1,7 +1,7 @@
 Meteor.methods
   packages: (versions) ->
     if Meteor.isServer
-      update()
+      # update()
       R.pipe(
         R.split('\n'), 
         R.map(R.split('@'))
