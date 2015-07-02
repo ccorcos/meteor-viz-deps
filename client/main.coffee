@@ -25,6 +25,7 @@ Template.main.events
 
 renderVis = (packages) ->
   console.log("render!", packages)
+  @packages = packages
 
   width = 500
   height = 500
@@ -32,14 +33,35 @@ renderVis = (packages) ->
 
   @force = force = d3.layout.force()
     .charge(-80)
-    .linkDistance(30).size([width, height])
+    .linkDistance(100)
+    .gravity(.1)
+    .linkStrength(.1)
+    .size([width, height])
 
   @svg = svg = d3.select('#viz')
     .append('svg')
     .attr('width', width)
     .attr('height', height)
 
-  @nodes = nodes = packages.filter(({name}) -> name isnt "meteor" and name isnt "meteor-platform")
+  @nodes = nodes = packages.filter(({name}) -> 
+    name isnt "meteor" and name isnt "meteor-platform"
+  ).map((node) ->
+    node.dependencies = node.dependencies.filter((name) ->
+      name isnt "meteor" and name isnt "meteor-platform"
+    )
+    node
+  )
+
+  map = {}
+  for node in nodes
+    map[node.name] = node
+    node.imported = []
+
+  for node in nodes
+    for dep in node.dependencies
+      if map[dep]
+        map[dep].imported.push(node.name)
+
   @links = links = []
 
   find = (name) ->
